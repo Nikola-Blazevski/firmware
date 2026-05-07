@@ -5,7 +5,6 @@
 #include "configuration.h"
 #include "mesh-pb-constants.h"
 #include <Arduino.h>
-#include <memory>
 
 extern concurrency::Lock *cryptLock;
 
@@ -24,6 +23,9 @@ struct CryptoKey {
 #define MAX_BLOCKSIZE 256
 #define TEST_CURVE25519_FIELD_OPS // Exposes Curve25519::isWeakPoint() for testing keys
 
+// Per-message PFS overhead: 32 ephemeral pub + 8 auth tag + 4 extra nonce
+static constexpr size_t PKI_PFS_OVERHEAD = 44;
+
 class CryptoEngine
 {
   public:
@@ -36,7 +38,6 @@ class CryptoEngine
 #if !(MESHTASTIC_EXCLUDE_PKI_KEYGEN)
     virtual void generateKeyPair(uint8_t *pubKey, uint8_t *privKey);
     virtual bool regeneratePublicKey(uint8_t *pubKey, uint8_t *privKey);
-    virtual bool ensurePkiKeys(meshtastic_Config_SecurityConfig &security, meshtastic_User &user);
 
 #endif
     void setDHPrivateKey(uint8_t *_private_key);
@@ -50,7 +51,7 @@ class CryptoEngine
     virtual void aesSetKey(const uint8_t *key, size_t key_len);
 
     virtual void aesEncrypt(uint8_t *in, uint8_t *out);
-    std::unique_ptr<AESSmall256> aes = nullptr;
+    AESSmall256 *aes = NULL;
 
 #endif
 
@@ -79,9 +80,32 @@ class CryptoEngine
     /** Our per packet nonce */
     uint8_t nonce[16] = {0};
     CryptoKey key = {};
+    CTRCommon *ctr = NULL;
 #if !(MESHTASTIC_EXCLUDE_PKI)
     uint8_t shared_key[32] = {0};
     uint8_t private_key[32] = {0};
+
+    /**
+     * Derive a PFS encryption key by combining two ECDH shared secrets:
+     *   ss1 = ECDH(our_static_priv, remoteStaticPub)     -> authentication
+     *   ss2 = ECDH(ephemeralPriv, ephemeralTarget)        -> forward secrecy
+     *   key = SHA256(ss1 || ss2)
+     *
+     * Encrypt side passes: (remote_static, eph_priv, remote_static)
+     * Decrypt side passes: (remote_static, our_static_priv, eph_pub_from_packet)
+     *
+     * ECDH commutativity guarantees both sides derive the same ss2.
+     *
+     * @param remoteStaticPub  Remote node's long-lived public key (32 bytes).
+     * @param ephemeralPriv    Private key for the ephemeral DH (32 bytes).
+     * @param ephemeralTarget  Public key to DH against for ss2 (32 bytes).
+     * @param outKey           32-byte output buffer for derived key.
+     * @return true on success.
+     */
+    bool derivePFSKey(const uint8_t *remoteStaticPub,
+                      const uint8_t *ephemeralPriv,
+                      const uint8_t *ephemeralTarget,
+                      uint8_t *outKey);
 #endif
     /**
      * Init our 128 bit nonce for a new packet

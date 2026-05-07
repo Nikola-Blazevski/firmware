@@ -83,22 +83,25 @@ static const unsigned char mail[] PROGMEM = {
     0b11111111, 0b00  // Bottom line
 };
 
-// Hop icon (9x10)
-#define hop_width 9
-#define hop_height 10
-const uint8_t hop[] PROGMEM = {0x05, 0x00, 0x07, 0x00, 0x05, 0x00, 0x38, 0x00, 0x28, 0x00,
-                               0x38, 0x00, 0xC0, 0x01, 0x40, 0x01, 0xC0, 0x01, 0x40, 0x00};
-
 // 📬 Mail / Message
 const uint8_t icon_mail[] PROGMEM = {
-    0b11111111, // ████████ top border
-    0b10000001, // █      █ sides
-    0b11000011, // ██    ██ diagonal
-    0b10100101, // █ █  █ █ inner M
-    0b10011001, // █  ██  █ inner M
-    0b10000001, // █      █ sides
-    0b10000001, // █      █ sides
-    0b11111111  // ████████ bottom
+    // 0b11111111, // ████████ top border
+    // 0b10000001, // █      █ sides
+    // 0b11000011, // ██    ██ diagonal
+    // 0b10100101, // █ █  █ █ inner M
+    // 0b10011001, // █  ██  █ inner M
+    // 0b10000001, // █      █ sides
+    // 0b10000001, // █      █ sides
+    // 0b11111111  // ████████ bottom
+
+    0b00111100, //   ████  
+    0b01000010, //  █    █
+    0b10100101, // █ █  █ █  eyes
+    0b10000001, // █      █
+    0b10100101, // █ █  █ █  smile curve
+    0b10011001, // █  ██  █
+    0b01000010, //  █    █
+    0b00111100  //   ████  
 };
 
 // 📍 GPS Screen / Location Pin
